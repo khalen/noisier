@@ -55,6 +55,7 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Random.fs" />
     <Compile Include="Math.fs" />
     <Compile Include="Noise.fs" />
     <Compile Include="Program.fs" />
