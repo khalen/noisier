@@ -101,3 +101,8 @@ and Vector3 =
     member inline a.Cross( b: Vector3 ) = Vector3( a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x )
 
     member inline a.ToArray() = [| a.x; a.y; a.z |]
+
+type Matrix3x4() =
+    let mutable m = Array.zeroCreate (3 * 4)
+
+
