@@ -23,6 +23,9 @@ type XorShift() =
     do
         reseed (new Random())
 
+    new( seed ) as self =
+        new XorShift() then (self :> IRandom).Seed( seed )
+
     interface IRandom with
         member v.GetUint64() =
             let x = state.[0]
