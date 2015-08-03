@@ -18,8 +18,7 @@ module Tables =
     let grad3Src = [|
         (1,1,0); (-1,1,0); (1,-1,0); (-1,-1,0);
         (1,0,1); (-1,0,1); (1,0,-1); (-1,0,-1);
-        (0,1,1); (0,-1,1); (0,1,-1); (0,-1,-1);
-        (-1,1,1); (1,-1,1); (1,1,-1); (0,0,0); |]
+        (0,1,1); (0,-1,1); (0,1,-1); (0,-1,-1); |]
 
     let grad4Src = [|
         (0,1,1,1); (0,1,1,-1); (0,1,-1,1); (0,1,-1,-1);
@@ -68,7 +67,7 @@ module Tables =
 
     let P = [| for i in 0 .. 255 do yield pSrc.[i]; for i in 0 .. 255 do yield pSrc.[i] |]
     let pMod16 = [| for pv in P do yield pv % 16 |]
-    let grad3Table = [| for pv in P do yield toGrad3 grad3Src.[pv % 16] |]
+    let grad3Table = [| for pv in P do yield toGrad3 grad3Src.[pv % 12] |]
     let grad4Table = [| for pv in P do yield toGrad4 grad4Src.[pv % 32] |]
 
     let inline dotGradient2 ix iy fx fy =
@@ -128,17 +127,15 @@ let inline dcubic u = -6.0f * u * u + 6.0f
 let inline quintic u = u * u * u * (u * (u * 6.0f - 15.0f) + 10.0f)
 
 // u'(x) = 30x^4 + -60x^3 + 30x^2
-let inline dquintic u = u * u * (u * (u * 30.0f - 60.0f) + 30.0f)
+let inline dquintic x = 30.0f  * x * x * (x * (x - 2.0f) + 1.0f)
 
 let lerp t a b = (1.0f - t) * a + t * b
 
 let ffloor q =
-    let i = int q
-    if q < (float32 i) then i - 1 else i
+    if q < 0.0f then int (q - 1.0f) else int q
 
 let ffloorf q =
-    let i = int q
-    (if q < (float32 i) then i - 1 else i) |> float32
+    (if q < 0.0f then int (q - 1.0f) else int q) |> float32
 
 let l0 = 73856093u
 let l1 = 19349663u
@@ -305,9 +302,6 @@ type Simplex2D() =
         let gi1 = pMod12.[ii + i1 + P.[jj + j1]]
         let gi2 = pMod12.[ii + 1 + P.[jj + 1]]
 #else
-        let gi0 = (spatialHashp ii jj) % 12u
-        let gi1 = (spatialHashp (ii + i1) (jj + j1)) % 12u
-        let gi2 = (spatialHashp (ii + 1) (jj + 1)) % 12u
 #endif
         let t0 = 0.5f - x0 * x0 - y0 * y0
         let t1 = 0.5f - x1 * x1 - y1 * y1
@@ -316,14 +310,17 @@ type Simplex2D() =
         let n0 =
             if t0 < 0.0f then 0.0f else
                 let t0s = t0 * t0
+                let gi0 = (spatialHash2 ii jj) % 12u
                 t0s * t0s * dotGradient2Index gi0 x0 y0
         let n1 =
             if t1 < 0.0f then 0.0f else
                 let t1s = t1 * t1
+                let gi1 = (spatialHash2 (ii + i1) (jj + j1)) % 12u
                 t1s * t1s * dotGradient2Index gi1 x1 y1
         let n2 =
             if t2 < 0.0f then 0.0f else
                 let t2s = t2 * t2
+                let gi2 = (spatialHash2 (ii + 1) (jj + 1)) % 12u
                 t2s * t2s * dotGradient2Index gi2 x2 y2
 
         [| 70.0f * (n0 + n1 + n2) |]
@@ -346,49 +343,70 @@ type Simplex3D() =
         let k = (z + s) |> ffloorf
 
         let t = (i + j + k) * unskew
-        let (X0, Y0, Z0) = (i - t, j - t, k - t)
-        let (x0, y0, z0) = (x - X0, y - Y0, z - Z0)
-        let (i1, j1, k1, i2, j2, k2) =
-            if x0 >= y0 then
-                if y0 >= z0 then        (1, 0, 0, 1, 1, 0)
-                else if x0 >= z0 then   (1, 0, 0, 1, 0, 1)
-                else                    (0, 0, 1, 1, 0, 1)
-            else
-                if y0 < z0 then         (0, 0, 1, 0, 1, 1)
-                else if x0 < z0 then    (0, 1, 0, 0, 1, 1)
-                else                    (0, 1, 0, 1, 1, 0)
+        let x0 = x - (i - t)
+        let y0 = y - (j - t)
+        let z0 = z - (k - t)
 
-        let if1, jf1, kf1 = float32 i1, float32 j1, float32 k1
-        let if2, jf2, kf2 = float32 i2, float32 j2, float32 k2
-        let (x1, y1, z1) = (x0 - if1 + unskew, y0 - jf1 + unskew, z0 - kf1 + unskew)
-        let (x2, y2, z2) = (x0 - if2 + 2.0f * unskew, y0 - jf2 + 2.0f * unskew, z0 - kf2 + 2.0f * unskew)
-        let (x3, y3, z3) = (x0 - 1.0f + 3.0f * unskew, y0 - 1.0f + 3.0f * unskew, z0 - 1.0f + 3.0f * unskew)
-        let (ii, jj, kk) = (int i) &&& 0xFF, (int j) &&& 0xFF, (int k) &&& 0xFF
+        let i1, j1, k1, i2, j2, k2 =
+            if x0 >= y0 then
+                if y0 >= z0 then
+                    (1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f)
+                else if x0 >= z0 then
+                    (1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f)
+                else
+                    (0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f)
+            else
+                if y0 < z0 then
+                    (0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f)
+                else if x0 < z0 then
+                    (0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f)
+                else
+                    (0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f)
+
+        let x1 = x0 - i1 + unskew
+        let y1 = y0 - j1 + unskew
+        let z1 = z0 - k1 + unskew
+
+        // let (x2, y2, z2) = (x0 - if2 + 2.0f * unskew, y0 - jf2 + 2.0f * unskew, z0 - kf2 + 2.0f * unskew)
+        let x2 = x0 - i2 + 2.0f * unskew
+        let y2 = y0 - j2 + 2.0f * unskew
+        let z2 = z0 - k2 + 2.0f * unskew
+
+        // let (x3, y3, z3) = (x0 - 1.0f + 3.0f * unskew, y0 - 1.0f + 3.0f * unskew, z0 - 1.0f + 3.0f * unskew)
+        let x3 = x0 - 1.0f + 3.0f * unskew
+        let y3 = y0 - 1.0f + 3.0f * unskew
+        let z3 = z0 - 1.0f + 3.0f * unskew
+
+        #if X
         let gi0 = P.[ii + P.[jj + P.[kk]]] &&& 0xF
         let gi1 = P.[ii + i1 + P.[jj + j1 + P.[kk + k1]]] &&& 0xF
         let gi2 = P.[ii + i2 + P.[jj + j2 + P.[kk + k2]]] &&& 0xF
         let gi3 = P.[ii + 1 + P.[jj + 1 + P.[kk + 1]]] &&& 0xF
-        let t0 = 0.5f - x0 * x0 - y0 * y0 - z0 * z0
-        let t1 = 0.5f - x1 * x1 - y1 * y1 - z1 * z1
-        let t2 = 0.5f - x2 * x2 - y2 * y2 - z2 * z2
-        let t3 = 0.5f - x3 * x3 - y3 * y3 - z3 * z3
+        #endif
+
+        let t0 = 0.6f - x0 * x0 - y0 * y0 - z0 * z0
+        let t1 = 0.6f - x1 * x1 - y1 * y1 - z1 * z1
+        let t2 = 0.6f - x2 * x2 - y2 * y2 - z2 * z2
+        let t3 = 0.6f - x3 * x3 - y3 * y3 - z3 * z3
+
+        let inline hashIdx i j k = (spatialHash3 (int i) (int j) (int k)) % 12u
 
         let n0 =
             if t0 < 0.0f then 0.0f else
                 let t0s = t0 * t0
-                t0s * t0s * dotGradient3Index gi0 x0 y0 z0
+                t0s * t0s * dotGradient3Index (hashIdx i j k) x0 y0 z0
         let n1 =
             if t1 < 0.0f then 0.0f else
                 let t1s = t1 * t1
-                t1s * t1s * dotGradient3Index gi1 x1 y1 z1
+                t1s * t1s * dotGradient3Index (hashIdx (i + i1) (j + j1) (k + k1)) x1 y1 z1
         let n2 =
             if t2 < 0.0f then 0.0f else
                 let t2s = t2 * t2
-                t2s * t2s * dotGradient3Index gi2 x2 y2 z2
+                t2s * t2s * dotGradient3Index (hashIdx (i + i2) (j + j2) (k + k2)) x2 y2 z2
         let n3 =
             if t3 < 0.0f then 0.0f else
                 let t3s = t3 * t3
-                t3s * t3s * dotGradient3Index gi3 x3 y3 z3
+                t3s * t3s * dotGradient3Index (hashIdx (i + 1.0f) (j + 1.0f) (k + 1.0f)) x3 y3 z3
 
         [| 32.0f * (n0 + n1 + n2 + n3) |]
 
@@ -447,15 +465,42 @@ type BitNoise3D() =
         member __.Seed( seed ) = ()
         member __.GetValue( v ) = getValue v
 
+type FBM() =
+    let noise = Perlin2D() :> INoise
+
+    let getValue( p: float32[] ) =
+        let octaves = int p.[2]
+        let mutable scale = 1.0f
+        let mutable fade  = 0.5f
+        let mutable lacu  = 2.0f
+        let mutable dx, dz = 0.0f, 0.0f
+
+        let mutable r = 0.0f
+        for i in 0 .. octaves - 1 do
+            let va= noise.GetValue( p )
+            dx <- dx + va.[1]
+            dz <- dz + va.[2]
+            let nv = scale * va.[0] / (1.0f + dx*dx + dz*dz)
+            r <- r + nv
+            scale <- scale * fade
+            p.[0] <- p.[0] * lacu
+            p.[1] <- p.[1] * lacu
+            p.[2] <- p.[2] * lacu
+
+        [| (r - 0.2f) * 1.5f |]
+
+    interface INoise with
+        member __.Seed( seed ) = ()
+        member __.GetValue( v ) = getValue v
 
 open System.Windows
 open System.Windows.Media.Imaging
 
 let testPerlin() =
     let n = 256
-    let mutable xs = 0.1f
-    let mutable ys = 0.1f
-    let mutable zs = 0.1f
+    let mutable xs = 0.01f
+    let mutable ys = 0.01f
+    let mutable zs = 0.01f
     let mutable x0 = 0.23f
     let mutable y0 = 0.23f
     let mutable z0 = 0.23f
@@ -466,9 +511,11 @@ let testPerlin() =
     let pixel = Array.create (n * n) 0uy
     let noises = Array.create (n * n) 0.0f
     // let noiseSrc = new Perlin2D() :> INoise
+    // let noiseSrc = new Perlin3D() :> INoise
+    // let noiseSrc = new Simplex2D() :> INoise
     // let noiseSrc = new Simplex3D() :> INoise
-    let noiseSrc = new Simplex3D() :> INoise
     // let noiseSrc = new BitNoise3D() :> INoise
+    let noiseSrc = new FBM() :> INoise
     let panel = Controls.DockPanel()
     panel.HorizontalAlignment <- HorizontalAlignment.Stretch
     panel.VerticalAlignment <- VerticalAlignment.Stretch
@@ -482,7 +529,7 @@ let testPerlin() =
     let update p =
         for y in 0 .. n-1 do
             for x in 0 .. n-1 do
-               let nv = noiseSrc.GetValue( [| (float32 x) * xs+ x0; (float32 y) * ys + y0; z0 |] ).[0] * 0.5f + 0.5f
+               let nv = noiseSrc.GetValue( [| (float32 x) * xs+ x0; (float32 y) * ys + y0; z0; 8.0f |] ).[0] * 0.5f + 0.5f
                pixel.[x + y * n] <- clamp (nv * 256.0f) 0.0f 255.0f |> uint8
                noises.[x + y * n] <- nv
 
@@ -503,9 +550,9 @@ let testPerlin() =
 
 let testPerlin1() =
     let n = 256
-    let mutable xs = 0.1f
-    let mutable ys = 0.1f
-    let mutable zs = 0.1f
+    let mutable xs = 0.02f
+    let mutable ys = 0.02f
+    let mutable zs = 0.02f
     let mutable x0 = 0.23f
     let mutable y0 = 0.23f
     let mutable z0 = 0.23f

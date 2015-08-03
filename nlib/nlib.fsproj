@@ -55,19 +55,21 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Util.fs" />
+    <Compile Include="Vector.fs" />
+    <Compile Include="Matrix.fs" />
+    <Compile Include="Ops.fs" />
+    <Compile Include="Math.fs" />
     <Compile Include="BaseTypes.fs" />
     <Compile Include="Random.fs" />
-    <Compile Include="Math.fs" />
     <Compile Include="Noise.fs" />
-    <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Content Include="packages.config" />
+    <Compile Include="Camera.fs" />
+    <Compile Include="Raymarch.fs" />
+    <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="FsAlg">
-      <HintPath>..\packages\FsAlg.0.5.13\lib\FsAlg.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="FSharp.Core">
       <HintPath>..\packages\FSharp.Core.3.1.2.1\lib\net40\FSharp.Core.dll</HintPath>
       <Private>True</Private>
