@@ -10,6 +10,6 @@ type Camera() =
     member val Fov  = 2.5f
 
     member c.ToCameraSpace (v: Vec) = 
-        c.InverseMat * v
+        c.Axis.Xform v
 
 

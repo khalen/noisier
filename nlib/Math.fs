@@ -11,8 +11,16 @@ let kDegToRadScalar = 1.0f / kRadToDegScalar
 let inline toRadians f = f * kDegToRadScalar
 let inline toDegrees f = f * kRadToDegScalar
 
+let clamp t mi mx = max mi (min t mx)
+let smoothstep x edge0 edge1 =
+    let t = clamp ((x - edge0) / (edge1 - edge0)) 0.0f 1.0f
+    t * t * (3.0f - 2.0f * t)
+
 let vec3 x y z = vector [| x; y; z |]
 let vec4 x y z w = vector [| x; y; z; w |]
+
+let reflect (i: Vector<float32>) (n: Vector<float32>) =
+    i - 2.0f * (n * i) * n
 
 let axisVec axis =
     let v = vec3 0.0f 0.0f 0.0f
