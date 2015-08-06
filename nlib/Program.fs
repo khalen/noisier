@@ -1,7 +1,7 @@
 ﻿open Noise
 open Raymarch
 open Camera
-open Math
+open Nlib.Math
 open System.Windows
 open System.Windows.Media.Imaging
 

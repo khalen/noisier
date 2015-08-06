@@ -1,7 +1,7 @@
 ﻿module BaseTypes
 
 open FsAlg.Generic
-open Math
+open Nlib.Math
 
 type Vec = Vector<float32>
 type Mat = Matrix<float32>

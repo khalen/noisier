@@ -2,7 +2,7 @@
 
 open FsAlg.Generic
 open BaseTypes
-open Math
+open Nlib.Math
 
 type Camera() =
     inherit Transform()
